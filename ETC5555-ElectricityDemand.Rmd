@@ -1,0 +1,159 @@
+---
+title: "ETC5555-GroupProject"
+author: "Sahinya Akila"
+date: "01/10/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, eval = FALSE}
+# Change to eval=TRUE if excel needs to be converted to csv
+# Reading all excel files
+library(readxl)
+library(dplyr)
+
+files <- list.files(path = paste0(getwd(), "/electricity"), pattern = "*ActualTotalLoad*", full.names = T)
+
+tbl <- sapply(files, read_xlsx, simplify=FALSE) %>% 
+bind_rows(.id = "id") %>% 
+  select(!id)
+
+
+# Write them into a csv file for easy and faster access hereafter
+write.csv(x = tbl, file = "Electricity_full_data.csv", col.names = TRUE)
+```
+
+```{r}
+library(data.table)
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(DataExplorer)
+# Read from CSV
+full_data <- read.csv("Electricity_full_data.csv") %>% select(!X)
+```
+
+```{r}
+# Check for NAs
+plot_missing(full_data, geom_label_args = list("size" = 2, "label.padding" = unit(0.1, "lines")))
+```
+
+```{r}
+# There are 2 area code columns that need to be combined into 1
+full_data <- full_data %>% mutate(areacode = ifelse(!is.na(AreaCode), AreaCode, areacode)) %>% 
+  select(!AreaCode) %>% 
+  mutate(Date = lubridate::as_date(DateTime),
+         Year = lubridate::year(Date),
+         Month = lubridate::month(Date),
+         Day = lubridate::day(Date))
+
+# Separate out time from the Datetime column
+full_data <- full_data %>% 
+  mutate(time = format(as.POSIXct(DateTime, "%Y-%M-%D $H:%M:%S"), format = "%H:%M:%S"),
+         Year = as.factor(Year),
+         Month = as.factor(Month),
+         Day = as.factor(Day))
+
+# The data has recordings every 15mins starting from 12 at midnight to 11:45pm
+```
+
+```{r}
+# Check for NAs
+plot_missing(full_data, geom_label_args = list("size" = 2, "label.padding" = unit(0.1, "lines")))
+```
+
+
+```{r}
+# Exploratory Data Analysis
+# Change in Power Consumption through each year
+full_data %>% 
+  group_by(Year) %>% 
+  summarise(meanLoadValue = mean(TotalLoadValue)) %>% 
+  ggplot(aes(x = Year, y = meanLoadValue)) + 
+  geom_line(group = 1)
+```
+```{r}
+# change in Power consumption for each month by year
+full_data %>% 
+  group_by(Year, Month) %>% 
+  summarise(meanLoadValue = mean(TotalLoadValue)) %>% 
+  ggplot(aes(x = Month, y = meanLoadValue, color = Year, group = Year)) + 
+  geom_point() +
+  geom_line() + 
+  facet_grid(Year~.)
+# The year 2014 has obs only for December
+```
+
+```{r}
+# change in Power consumption by Hour
+full_data %>% 
+  group_by(time) %>% 
+  summarise(meanLoadValue = mean(TotalLoadValue)) %>% 
+  ggplot(aes(x = time, y = meanLoadValue)) + 
+  geom_line(group = 1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# Strong Seasonality
+```
+
+```{r}
+# change in Power consumption by area
+full_data %>% 
+  group_by(AreaName) %>% 
+  summarise(meanLoadValue = mean(TotalLoadValue)) %>%
+  ggplot(aes(x = reorder(AreaName, meanLoadValue), y = meanLoadValue)) + 
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+```{r}
+# Amount of data available for each of the areas
+full_data %>% 
+  group_by(AreaName) %>% 
+  summarise(count = n()) %>%
+  ggplot(aes(x = reorder(AreaName, count), y = count)) + 
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+# Shows that predictions for areas with higher number of observations will be made more accurately than the others
+```
+
+# Let us also consider the day of the week as an added variable
+```{r}
+library(lubridate)
+full_data <- full_data %>% mutate(dayOfWeek = wday(DateTime, label=TRUE, week_start=1))
+
+full_data %>% 
+  group_by(dayOfWeek) %>% 
+  summarise(meanLoadValue = mean(TotalLoadValue)) %>% 
+  ggplot(aes(x = dayOfWeek, y = meanLoadValue)) + 
+  geom_line(group = 1)
+```
+
+# Data Prep for Neural Net
+
+```{r}
+nnet_data <- full_data %>% 
+  mutate(ResolutionCode = as.factor(ResolutionCode),
+         AreaName = as.factor(AreaName),
+         dayOfWeek = as.factor(dayOfWeek),
+         time = as.numeric(hms(time))) %>% 
+  select(Year, Month, Day, time, dayOfWeek, ResolutionCode, AreaName, MapCode, TotalLoadValue)
+
+str(nnet_data)
+```
+
+# One-hot encode categorical variables using recipes package
+
+```{r}
+library(recipes)
+nnet_data <- recipe(TotalLoadValue ~ ., nnet_data) %>%
+  step_dummy(Year, one_hot = TRUE) %>%
+  step_dummy(Month, one_hot = TRUE) %>%
+  step_dummy(Day, one_hot = TRUE) %>%
+  prep() %>%
+  recipes::bake(new_data = NULL)
+```
+
