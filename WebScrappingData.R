@@ -6,10 +6,6 @@ countrycode = c('CTY|10Y1001A1001A83F!CTY|10Y1001A1001A83F',
                 'CTY|10YFR-RTE------C!CTY|10YFR-RTE------C'
                 )
 
-'https://transparency.entsoe.eu/load-domain/r2/totalLoadR2/show?name=&defaultValue=false&viewType=TABLE&areaType=CTY&atch=false&dateTime.dateTime=01.01.2015+00:00|UTC|DAY&biddingZone.values=CTY|10YSE-1--------K!CTY|10YSE-1--------K&dateTime.timezone=UTC&dateTime.timezone_input=UTC'
-
-
-
 data <- data.frame(date = c(), time = c(), totalLoad = c())
 
 for (Year in 2015:2021){
