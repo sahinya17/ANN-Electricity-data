@@ -1,6 +1,10 @@
 library(rvest)
-countries = c('Germany')
-countrycode = c('CTY|10Y1001A1001A83F!CTY|10Y1001A1001A83F')
+countries = c('Germany', 'Poland', 'Norway', 'France')
+countrycode = c('CTY|10Y1001A1001A83F!CTY|10Y1001A1001A83F',
+                'CTY|10YPL-AREA-----S!CTY|10YPL-AREA-----S',
+                'CTY|10YNO-0--------C!CTY|10YNO-0--------C',
+                'CTY|10YFR-RTE------C!CTY|10YFR-RTE------C'
+                )
 
 data <- data.frame(date = c(), time = c(), totalLoad = c())
 
@@ -22,13 +26,14 @@ for (Year in 2015:2021){
       dd = day
       if (Month < 10) { mm = paste0("0",Month) }
       if (day < 10) { dd = paste0("0",day) }
-      for (i in 1:1){
+      for (i in 1:4){
         link = paste0("https://transparency.entsoe.eu/load-domain/r2/totalLoadR2/show?name=&defaultValue=false&viewType=TABLE&areaType=CTY&atch=false&dateTime.dateTime=",dd,".",mm,".",Year,"+00:00|UTC|DAY&biddingZone.values=",countrycode[i],"&dateTime.timezone=UTC&dateTime.timezone_input=UTC")
         page <- read_html(link)
         
         time = page %>% html_nodes(".first") %>% html_text()
-        total_load = page %>% html_nodes(".dv-value-cell+ .dv-value-cell") %>% html_text()
+        total_load = page %>% html_nodes("..dv-value-cell+ .dv-value-cell") %>% html_text()
       data <- rbind(data, cbind(countries[i], paste0(dd,"-",mm,"-",Year), time, total_load))
+      break
       }
     }
   }
@@ -36,3 +41,23 @@ for (Year in 2015:2021){
 colnames(data) <- c("Country", "Date", "time", "totalLoad")
 
 write.csv(data, "Electricity_data.csv")
+
+
+
+
+link = paste0("https://transparency.entsoe.eu/load-domain/r2/totalLoadR2/show?name=&defaultValue=false&viewType=TABLE&areaType=CTY&atch=false&dateTime.dateTime=",'01',".",'01',".",'2015',"+00:00|UTC|DAY&biddingZone.values=",'CTY|10Y1001A1001A83F!CTY|10Y1001A1001A83F',"&dateTime.timezone=UTC&dateTime.timezone_input=UTC")
+page <- read_html(link)
+
+time = page %>% html_nodes(".first") %>% html_text()
+total_load = page %>% html_nodes(".dv-value-cell+ .dv-value-cell , .dv-value-cell+ .dv-value-cell .data-view-detail-link") %>% html_text()
+data <- rbind(data, cbind(countries[i], paste0(dd,"-",mm,"-",Year), time, total_load))
+
+
+
+
+
+
+
+
+
+  
