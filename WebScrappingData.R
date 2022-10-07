@@ -31,7 +31,7 @@ for (Year in 2015:2021){
         page <- read_html(link)
         
         time = page %>% html_nodes(".first") %>% html_text()
-        total_load = page %>% html_nodes("..dv-value-cell+ .dv-value-cell") %>% html_text()
+        total_load = page %>% html_nodes(".dv-value-cell+ .dv-value-cell") %>% html_text()
       data <- rbind(data, cbind(countries[i], paste0(dd,"-",mm,"-",Year), time, total_load))
       break
       }
