@@ -1,0 +1,57 @@
+---
+title: "ETC5555-GroupProject"
+author: "Sahinya Akila"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(DataExplorer)
+```
+
+
+```{r}
+# Read Data
+germany_data <- read.csv("data/Electricity_data_Germany.csv") %>% select(!X)
+poland_data <- read.csv("data/Electricity_data_poland.csv") %>% select(!X)
+france_data <- read.csv("data/Electricity_data_France.csv") %>% select(!X)
+norway_data <- read.csv("data/Electricity_data_norway.csv") %>% select(!X)
+```
+
+```{r}
+plot_missing(germany_data, geom_label_args = list("size" = 2, "label.padding" = unit(0.1, "lines")))
+```
+```{r}
+# Data pre-processing
+# Step 1: Split time column into 2and change data type of time
+nnet_data <- germany_data %>% 
+  separate(time, into = c("time_from", "time_to"), sep = " - ") %>% 
+  mutate(time_from = as.factor(time_from),
+         Date = as.Date(Date, format = "%d-%m-%Y"))
+```
+
+```{r}
+# Check for duplicates
+
+```
+
+
+
+```{r}
+nnet_data %>% 
+  group_by(Date) %>% 
+  summarise(totalLoad = mean(totalLoad)) %>% 
+  ggplot(aes(x = Date, y = totalLoad)) + geom_line()
+```
+
+```{r}
+nnet_data <- nnet_data %>% 
+  select(Date, time_from, totalLoad) %>% 
+  pivot_wider(names_from = time_from, values_from = totalLoad)
+```
+
